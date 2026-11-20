@@ -2,9 +2,7 @@ package com.chenyan.kotlindemo.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
@@ -23,10 +21,15 @@ class CallerIdRepository(
         // 通道二：云端，异步后出；2 秒超时即放弃本次，UI 永不等待
         launch {
             val cloudResult = withTimeoutOrNull(2000) { cloudDataSource.query(number) }
-            //假如超时了，query方法会被取消掉，cloudResult为null，是为兜底逻辑
+            // 假如超时了，query方法会被取消掉，cloudResult为null，是为兜底逻辑
             // 超时也发一条：tag 为 null 的云端结果 → UI 走 Complete 分支显示"云端无此号码标记"
-            send(cloudResult ?: NumberInfo(number = number, location = null,
-                tag = null, source = NumberInfo.Source.CLOUD))
+            val result = cloudResult ?: NumberInfo(
+                number = number, location = null,
+                tag = null, source = NumberInfo.Source.CLOUD
+            )
+            //存入缓存
+            localDataSource.cacheTag(number, result.tag)
+            send(result)
         }
     }
 }
